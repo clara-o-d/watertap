@@ -123,7 +123,7 @@ def main(
     assert_optimal_termination(results)
 
     add_costing(m, dye_revenue=dye_revenue, brine_revenue=brine_revenue)
-    initialize_costing(m)
+    initialize_costing(m)#
     assert_degrees_of_freedom(m, 0)  # ensures problem is square
 
     if hasattr(m.fs, "desalination"):
@@ -1601,7 +1601,7 @@ if __name__ == "__main__":
     model, results = main(
         RO_1D=True,
         include_RO=True,
-        include_pretreatment=False,
+        include_pretreatment=True,
         include_dewatering=False,
         include_gac=True,
         dye_revenue=False,
