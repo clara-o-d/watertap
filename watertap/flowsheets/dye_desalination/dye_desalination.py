@@ -123,7 +123,7 @@ def main(
     assert_optimal_termination(results)
 
     add_costing(m, dye_revenue=dye_revenue, brine_revenue=brine_revenue)
-    initialize_costing(m)#
+    initialize_costing(m)
     assert_degrees_of_freedom(m, 0)  # ensures problem is square
 
     if hasattr(m.fs, "desalination"):
@@ -137,7 +137,8 @@ def main(
     display_results(m)
     display_costing(m)
 
-    return m, results
+    lcot = value(pyunits.convert(m.fs.LCOT, to_units=pyunits.USD_2023 / pyunits.m**3))
+    return lcot # m, results
 
 
 def build(
@@ -387,6 +388,7 @@ def build(
 
     # calculate and propagate scaling factors
     iscale.calculate_scaling_factors(m)
+    #print(m.db)
     return m
 
 
@@ -584,7 +586,7 @@ def optimize_operation(m):
         - Volumetric recovery: 10 - 75 %
     """
     desal = m.fs.desalination
-
+    
     # RO operating pressure
     desal.P2.control_volume.properties_out[0].pressure.unfix()
     desal.P2.control_volume.properties_out[0].pressure.setub(
@@ -598,6 +600,7 @@ def optimize_operation(m):
     desal.RO.feed_side.velocity[0, 0].setlb(0.1)
 
     # RO membrane area
+    # print("RO Membrane area: " + {desal.RO.area})
     desal.RO.area.unfix()
     desal.RO.area.setub(5000)
     desal.RO.area.setlb(50)
@@ -1598,7 +1601,7 @@ def display_costing(m):
 
 
 if __name__ == "__main__":
-    model, results = main(
+    lcot = main(
         RO_1D=True,
         include_RO=True,
         include_pretreatment=True,

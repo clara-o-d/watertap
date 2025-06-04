@@ -298,6 +298,6 @@ def test_costing():
 
     assert isinstance(m.fs.unit.costing.capital_cost, Var)
     assert isinstance(m.fs.unit.costing.capital_cost_constraint, Constraint)
-
+    
     assert_units_consistent(m.fs)
     assert degrees_of_freedom(m.fs.unit) == 0
