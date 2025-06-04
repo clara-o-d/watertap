@@ -20,7 +20,8 @@ from pyomo.util.check_units import assert_units_consistent
 from idaes.core import (
     FlowsheetBlock,
     MomentumBalanceType,
-    UnitModelBlockData
+    UnitModelBlockData,
+    UnitModelCostingBlock
 )
 
 from watertap.core.solvers import get_solver
@@ -36,6 +37,9 @@ from watertap.unit_models.zero_order import (
     EvaporationPondZO
 )
 
+from watertap.costing.zero_order_costing import ZeroOrderCosting
+from watertap.costing import WaterTAPCosting
+
 # logger
 _log = idaeslog.getLogger(__name__)
 
@@ -47,19 +51,21 @@ def main():
     assert_units_consistent(m)
 
     initialize_system(m)
-    assert_degrees_of_freedome(m, 0)
+    m.display()
+    print('____________________________________________________________________________')
+    # assert_degrees_of_freedom(m, 0)
 
     results = solve(m, checkpoint="solve flowsheet after initializing system")
     assert_optimal_termination(results)
-
-    # add_costing(m)
+    m.fs.pond.report()
+    add_costing(m)
     # initialize_costing(m)
 
-    optimize_operation(m)
-    results = solve(m, checkpoint="solve flowsheet after costing")
-    assert_optimal_termination(results)
+    # optimize_operation(m)
+    # results = solve(m, checkpoint="solve flowsheet after costing")
+    # assert_optimal_termination(results)
 
-    display_results(m)
+    # display_results(m)
 
 # build
 def build():
@@ -78,11 +84,12 @@ def build():
 
     # connections
     m.fs.s_feed = Arc(source=m.fs.feed.outlet, destination=m.fs.pond.inlet)
+    TransformationFactory("network.expand_arcs").apply_to(m) # Could this be re-explained...?
 
     # scaling
 
     # set unit model values
-    
+
     # m.display()
     return m
 
@@ -116,12 +123,20 @@ def set_operating_conditions(m):
     # m.display()
 
 # initialize the system
-def initialize_system():
-    pass
+def initialize_system(m):
+    propagate_state(m.fs.s_feed)
+    seq = SequentialDecomposition()
+    seq.options.tear_set = []
+    seq.options.iterLim = 1
 
-# optimize the operation
-def optimize_operation():
-    pass
+    seq.run(m.fs.pond, lambda u: u.initialize())
+
+    # print('------------------------------------------------------------------------------------')
+    # m.display()
+
+# # optimize the operation
+# def optimize_operation():
+#     pass
 
 # solve the flowsheet
 def solve(blk, solver=None, checkpoint=None, tee=False, fail_flag=True):
@@ -130,20 +145,17 @@ def solve(blk, solver=None, checkpoint=None, tee=False, fail_flag=True):
     results = solver.solve(blk, tee=tee)
     return results
 
-# # add costing
-# def add_costing():
-#     pass
+# add costing
+def add_costing(m):
+    m.fs.costing = ZeroOrderCosting()
+    m.fs.costing.base_currency = pyunits.USD_2023 # change to 2025?
+    m.fs.pond.costing = UnitModelCostingBlock(flowsheet_costing_block=m.fs.costing)
+    
+    assert_units_consistent(m)
+    print(m.fs.pond.costing.capital_cost.value)
 
 # # initialize the costing
 # def initialize_costing():
-#     pass
-
-# display the results
-def display_results():
-    pass
-
-# # display the costing
-# def display_costing():
 #     pass
 
 if __name__ == "__main__":
