@@ -39,6 +39,8 @@ from watertap.unit_models.zero_order import (
 
 from watertap.costing.zero_order_costing import ZeroOrderCosting
 from watertap.costing import WaterTAPCosting
+from idaes.core.util import DiagnosticsToolbox
+from idaes.core.util import model_statistics as istat
 
 # logger
 _log = idaeslog.getLogger(__name__)
@@ -47,22 +49,28 @@ _log = idaeslog.getLogger(__name__)
 def main():
     m = build()
     set_operating_conditions(m)
+    
+    dt = DiagnosticsToolbox(m)
+    dt.report_structural_issues()
 
-    assert_units_consistent(m)
+    assert_degrees_of_freedom(m, 0)
+    # assert_units_consistent(m)
 
-    initialize_system(m)
-    m.display()
-    print('____________________________________________________________________________')
+    # initialize_system(m)
+    # m.display()
+    # print('____________________________________________________________________________')
     # assert_degrees_of_freedom(m, 0)
 
     results = solve(m, checkpoint="solve flowsheet after initializing system")
-    assert_optimal_termination(results)
-    m.fs.pond.report()
+    # assert_optimal_termination(results)
+    # m.fs.pond.report()
     add_costing(m)
-    # initialize_costing(m)
+    initialize_costing(m)
 
     # optimize_operation(m)
-    # results = solve(m, checkpoint="solve flowsheet after costing")
+    results = solve(m, checkpoint="solve flowsheet after costing")
+    m.fs.pond.report()
+    m.fs.pond.costing.display()
     # assert_optimal_termination(results)
 
     # display_results(m)
@@ -148,15 +156,14 @@ def solve(blk, solver=None, checkpoint=None, tee=False, fail_flag=True):
 # add costing
 def add_costing(m):
     m.fs.costing = ZeroOrderCosting()
-    m.fs.costing.base_currency = pyunits.USD_2023 # change to 2025?
+    m.fs.costing.base_currency = pyunits.USD_2023
     m.fs.pond.costing = UnitModelCostingBlock(flowsheet_costing_block=m.fs.costing)
     
     assert_units_consistent(m)
-    print(m.fs.pond.costing.capital_cost.value)
 
-# # initialize the costing
-# def initialize_costing():
-#     pass
+# initialize the costing
+def initialize_costing(m):
+    m.fs.pond.costing.initialize()
 
 if __name__ == "__main__":
     main()
