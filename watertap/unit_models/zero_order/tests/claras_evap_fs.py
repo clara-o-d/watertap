@@ -158,6 +158,7 @@ def add_costing(m):
     m.fs.costing = ZeroOrderCosting()
     m.fs.costing.base_currency = pyunits.USD_2023
     m.fs.pond.costing = UnitModelCostingBlock(flowsheet_costing_block=m.fs.costing)
+    # m.fs.costing.add_LCOW(m.fs.product.properties[0].flow_vol) --> troubleshoot
     
     assert_units_consistent(m)
 
