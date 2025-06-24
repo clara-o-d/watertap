@@ -69,8 +69,10 @@ def main():
 
     # optimize_operation(m)
     results = solve(m, checkpoint="solve flowsheet after costing")
-    m.fs.pond.report()
+    m.fs.pond.pprint()
     m.fs.pond.costing.display()
+    lcoli = value(pyunits.convert(m.fs.LCOLi, to_units=pyunits.USD_2023 / pyunits.tonne))
+    print("lcoli: " + str(lcoli)) # m, results
     # assert_optimal_termination(results)
 
     # display_results(m)
@@ -83,7 +85,7 @@ def build():
 
     m.fs = FlowsheetBlock(dynamic=False)
     m.fs.params = WaterParameterBlock(
-        solute_list=["tds", "lithium", "chlorine", "sodium", "potassium", "magnesium", "calcium", "sulfate"]
+        solute_list=["tds", "lithium", "chloride", "sodium", "potassium", "magnesium", "calcium", "sulfate"]
     )
 
     # define flowsheet inlets and outlets
@@ -117,7 +119,7 @@ def set_operating_conditions(m):
     m.fs.feed.flow_vol[0].fix(flow_vol)
     m.fs.feed.conc_mass_comp[0, "tds"].fix(conc_mass_tds)
     m.fs.feed.conc_mass_comp[0, "lithium"].fix(conc_mass_li)
-    m.fs.feed.conc_mass_comp[0, "chlorine"].fix(conc_mass_cl)
+    m.fs.feed.conc_mass_comp[0, "chloride"].fix(conc_mass_cl)
     m.fs.feed.conc_mass_comp[0, "sodium"].fix(conc_mass_na)
     m.fs.feed.conc_mass_comp[0, "potassium"].fix(conc_mass_k)
     m.fs.feed.conc_mass_comp[0, "magnesium"].fix(conc_mass_mg)
@@ -158,7 +160,23 @@ def add_costing(m):
     m.fs.costing = ZeroOrderCosting()
     m.fs.costing.base_currency = pyunits.USD_2023
     m.fs.pond.costing = UnitModelCostingBlock(flowsheet_costing_block=m.fs.costing)
-    # m.fs.costing.add_LCOW(m.fs.product.properties[0].flow_vol) --> troubleshoot
+
+    @m.fs.Expression(
+        doc="Levelized cost of lithium product"
+    )
+    def LCOLi(b):
+        return (
+            b.pond.costing.capital_cost * b.costing.capital_recovery_factor
+        ) / (
+            pyunits.convert(
+                b.pond.treated.flow_mass_comp[0, "lithium"],
+                to_units=pyunits.tonne / pyunits.year,
+            )
+            * b.costing.utilization_factor
+        )
+    # m.fs.costing.cost_process()
+    # m.fs.costing.aggregate_costs()
+    # m.fs.costing.add_LCOW(m.fs.feed.flow_vol[0])
     
     assert_units_consistent(m)
 
