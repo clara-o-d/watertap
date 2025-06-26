@@ -69,10 +69,10 @@ def main():
 
     # optimize_operation(m)
     results = solve(m, checkpoint="solve flowsheet after costing")
-    m.fs.pond.pprint()
     m.fs.pond.costing.display()
-    lcoli = value(pyunits.convert(m.fs.LCOLi, to_units=pyunits.USD_2023 / pyunits.tonne))
-    print("lcoli: " + str(lcoli)) # m, results
+    print(f"Air temperature: {m.fs.pond.air_temperature[0].value}")
+    # lcoli = value(pyunits.convert(m.fs.LCOLi, to_units=pyunits.USD_2023 / pyunits.tonne))
+    # print("lcoli: " + str(lcoli)) # m, results
     # assert_optimal_termination(results)
 
     # display_results(m)
@@ -81,20 +81,19 @@ def main():
 def build():
     # flowsheet set up
     m = ConcreteModel()
-    m.db = Database()
+
+    path = os.getcwd()
+    m.db = Database(dbpath=path)
 
     m.fs = FlowsheetBlock(dynamic=False)
     m.fs.params = WaterParameterBlock(
-        solute_list=["tds", "lithium", "chloride", "sodium", "potassium", "magnesium", "calcium", "sulfate"]
+        solute_list=["lithium", "potassium", "magnesium", "calcium"]
     )
 
     # define flowsheet inlets and outlets
-    m.fs.feed = FeedZO(property_package = m.fs.params)
     m.fs.pond = EvaporationPondZO(property_package = m.fs.params, database = m.db)
 
     # connections
-    m.fs.s_feed = Arc(source=m.fs.feed.outlet, destination=m.fs.pond.inlet)
-    TransformationFactory("network.expand_arcs").apply_to(m) # Could this be re-explained...?
 
     # scaling
 
@@ -105,33 +104,13 @@ def build():
 
 # set operating conditions
 def set_operating_conditions(m):
-    # feed
-    flow_vol = 280 / 3600 * pyunits.m**3 / pyunits.s
-    conc_mass_tds = 290 * pyunits.kg / pyunits.m**3
-    conc_mass_li = 1 * pyunits.kg / pyunits.m**3
-    conc_mass_cl = 200 * pyunits.kg / pyunits.m**3
-    conc_mass_na = 60 * pyunits.kg / pyunits.m**3
-    conc_mass_k = 10 * pyunits.kg / pyunits.m**3
-    conc_mass_mg = 15 * pyunits.kg / pyunits.m**3
-    conc_mass_ca = 2 * pyunits.kg / pyunits.m**3
-    conc_mass_so4 = 2 * pyunits.kg / pyunits.m**3
+    m.fs.pond.inlet.flow_mass_comp[0, "H2O"].fix(1013.931)
+    m.fs.pond.inlet.flow_mass_comp[0, "lithium"].fix(1.65)
+    m.fs.pond.inlet.flow_mass_comp[0, "potassium"].fix(24.804)
+    m.fs.pond.inlet.flow_mass_comp[0, "magnesium"].fix(10.142)
+    m.fs.pond.inlet.flow_mass_comp[0, "calcium"].fix(0.473)
 
-    m.fs.feed.flow_vol[0].fix(flow_vol)
-    m.fs.feed.conc_mass_comp[0, "tds"].fix(conc_mass_tds)
-    m.fs.feed.conc_mass_comp[0, "lithium"].fix(conc_mass_li)
-    m.fs.feed.conc_mass_comp[0, "chloride"].fix(conc_mass_cl)
-    m.fs.feed.conc_mass_comp[0, "sodium"].fix(conc_mass_na)
-    m.fs.feed.conc_mass_comp[0, "potassium"].fix(conc_mass_k)
-    m.fs.feed.conc_mass_comp[0, "magnesium"].fix(conc_mass_mg)
-    m.fs.feed.conc_mass_comp[0, "calcium"].fix(conc_mass_ca)
-    m.fs.feed.conc_mass_comp[0, "sulfate"].fix(conc_mass_so4)
-    solve(m.fs.feed, checkpoint="solve feed block")
-
-    # evaporation pond
     m.fs.pond.load_parameters_from_database(use_default_removal=True)
-    # print('------------------------------------------------------------------------------------')
-    # m.display()
-
 # initialize the system
 def initialize_system(m):
     propagate_state(m.fs.s_feed)
@@ -158,25 +137,24 @@ def solve(blk, solver=None, checkpoint=None, tee=False, fail_flag=True):
 # add costing
 def add_costing(m):
     m.fs.costing = ZeroOrderCosting()
-    m.fs.costing.base_currency = pyunits.USD_2023
     m.fs.pond.costing = UnitModelCostingBlock(flowsheet_costing_block=m.fs.costing)
 
-    @m.fs.Expression(
-        doc="Levelized cost of lithium product"
-    )
-    def LCOLi(b):
-        return (
-            b.pond.costing.capital_cost * b.costing.capital_recovery_factor
-        ) / (
-            pyunits.convert(
-                b.pond.treated.flow_mass_comp[0, "lithium"],
-                to_units=pyunits.tonne / pyunits.year,
-            )
-            * b.costing.utilization_factor
-        )
-    m.fs.costing.cost_process() # error here
+    # @m.fs.Expression(
+    #     doc="Levelized cost of lithium product"
+    # )
+    # def LCOLi(b):
+    #     return (
+    #         b.pond.costing.capital_cost * b.costing.capital_recovery_factor
+    #     ) / (
+    #         pyunits.convert(
+    #             b.pond.treated.flow_mass_comp[0, "lithium"],
+    #             to_units=pyunits.tonne / pyunits.year,
+    #         )
+    #         * b.costing.utilization_factor
+    #     )
+    # m.fs.costing.cost_process() # error here
     # m.fs.costing.aggregate_costs()
-    # m.fs.costing.add_LCOW(m.fs.feed.flow_vol[0])
+    # m.fs.costing.add_LCOW(m.fs.pond.inlet.flow_mass_comp[0, "lithium"], name="LCOLi")
     
     assert_units_consistent(m)
 

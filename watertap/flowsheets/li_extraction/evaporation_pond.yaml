@@ -3,7 +3,7 @@ default:
     value: 0.0
     units: kWh/m^3
   air_temperature:
-    value: 298.0
+    value: 200
     units: kelvin
   solar_radiation:
     value: 25
@@ -38,7 +38,7 @@ default:
       value: 50
       units: mil
     land_cost:
-      value: 5000
+      value: 15000
       units: acre^-1 
     land_clearing_cost:
       value: 1000

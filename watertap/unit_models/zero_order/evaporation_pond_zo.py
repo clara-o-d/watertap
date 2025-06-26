@@ -158,7 +158,7 @@ class EvaporationPondZOData(ZeroOrderBaseData):
         @self.Constraint(self.flowsheet().time, doc="Base area constraint")
         def area_constraint(b, t):
             q_out = pyunits.convert(
-                self.properties_byproduct[t].flow_vol, #*
+                self.properties_byproduct[t].flow_vol,
                 to_units=pyunits.gallon / pyunits.minute,
             )
             return q_out == b.evaporation_rate_salt[t] * b.area[t]
@@ -219,12 +219,12 @@ class EvaporationPondZOData(ZeroOrderBaseData):
             ],
         )
 
-        # Add direct capital cost variable and constraint
-        blk.direct_capital_cost = pyo.Var(
+        # Add cost variable and constraint
+        blk.capital_cost = pyo.Var(
             initialize=1,
             units=blk.config.flowsheet_costing_block.base_currency,
             bounds=(0, None),
-            doc="Direct capital cost of unit operation",
+            doc="Capital cost of unit operation",
         )
 
         expr = pyo.units.convert(
@@ -239,24 +239,20 @@ class EvaporationPondZOData(ZeroOrderBaseData):
             to_units=blk.config.flowsheet_costing_block.base_currency,
         )
 
-        blk.direct_capital_cost_constraint = pyo.Constraint(
-            expr=blk.direct_capital_cost == expr
-        )
-
-        # Define capital_cost = direct_capital_cost
-        blk.capital_cost = pyo.Var(
-            initialize=1,
-            units=blk.config.flowsheet_costing_block.base_currency,
-            bounds=(0, None),
-            doc="Total capital cost of unit operation",
-        )
-
-        blk.capital_cost_constraint = pyo.Constraint(
-            expr=blk.capital_cost == blk.direct_capital_cost
-        )
+        blk.capital_cost_constraint = pyo.Constraint(expr=blk.capital_cost == expr)
 
         # Register flows
         blk.config.flowsheet_costing_block.cost_flow(
             blk.unit_model.electricity[t0], "electricity"
         )
 
+        blk.direct_capital_cost = pyo.Var(
+            initialize=1,
+            units=blk.config.flowsheet_costing_block.base_currency,
+            bounds=(0, None),
+            doc="Direct capital cost of unit operation",
+        )
+
+        blk.direct_capital_cost_constraint = pyo.Constraint(
+            expr=blk.direct_capital_cost == blk.capital_cost
+        )

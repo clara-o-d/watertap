@@ -7,7 +7,7 @@ from parameter_sweep import ParameterSweep, LinearSample, NormalSample
 from pyomo.util.check_units import assert_units_consistent
 from idaes.core.solvers import get_solver
 
-from claras_evap_fs import build, set_operating_conditions, solve, add_costing, initialize_costing
+from watertap.flowsheets.li_extraction.claras_evap_fs import build, set_operating_conditions, solve, add_costing, initialize_costing
 
 # initial solve
 m = build()
