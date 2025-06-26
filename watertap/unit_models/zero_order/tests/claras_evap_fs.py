@@ -174,7 +174,7 @@ def add_costing(m):
             )
             * b.costing.utilization_factor
         )
-    # m.fs.costing.cost_process()
+    m.fs.costing.cost_process() # error here
     # m.fs.costing.aggregate_costs()
     # m.fs.costing.add_LCOW(m.fs.feed.flow_vol[0])
     
